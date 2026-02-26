@@ -1,0 +1,11 @@
+{
+  "name": "funclicker-indexing-hammer",
+  "version": "1.0.0",
+  "description": "Google Indexing API Bot",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "firebase-admin": "^11.0.0",
+    "googleapis": "^126.0.0"
+  }
+}
