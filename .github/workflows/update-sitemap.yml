@@ -26,6 +26,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: 21 #
+          protocol: ftp  # جرب كتابة ftp أو ftps
           local-dir: ./public/  # المجلد الذي يحتوي على السايت ماب
-          server-dir: ./public_html/public/ # المسار داخل سيرفرك (تأكد منه)
+          server-dir: ./public_html/public/ # 
+          timeout: 60000 # زيادة وقت الانتظار لـ 60 ثانية ليتجنب الـ Timeoutالمسار داخل سيرفرك (تأكد منه)
