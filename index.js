@@ -31,18 +31,7 @@ async function startProcess() {
         }
 
         // --- الجزء الأول: توليد الـ Sitemap ---
-        console.log("🏗️ جاري بناء الـ Sitemap...");
-        const baseUrl = 'https://funclickergame.com';
-        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-        xml += `  <url><loc>${baseUrl}/</loc><priority>1.0</priority></url>\n`;
-
-        snapshot.docs.forEach(doc => {
-            xml += `  <url><loc>${baseUrl}/game/${doc.data().slug}</loc><priority>0.8</priority></url>\n`;
-        });
-        xml += `</urlset>`;
-        fs.writeFileSync('./public/sitemap.xml', xml);
-        console.log("✅ تم تحديث sitemap.xml");
-
+       
         // --- الجزء الثاني: تشغيل المطرقة (Indexing) ---
         const tokens = await jwtClient.authorize();
         console.log("🔨 بدأت المطرقة في العمل (نظام المجموعات)...");
