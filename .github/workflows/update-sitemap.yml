@@ -1,4 +1,4 @@
-name: Manual Sitemap Generator
+name: Generate Sitemap
 on:
   push:
     branches: [ main ]
@@ -19,14 +19,10 @@ jobs:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: node sitemap-generator.js
 
-      # --- الخطوة السحرية: رفع الملف للسيرفر تلقائياً ---
-      - name: FTP Deploy Sitemap
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp  # جرب كتابة ftp أو ftps
-          local-dir: ./public/  # المجلد الذي يحتوي على السايت ماب
-          server-dir: ./public_html/public/ # 
-          timeout: 60000 # زيادة وقت الانتظار لـ 60 ثانية ليتجنب الـ Timeoutالمسار داخل سيرفرك (تأكد منه)
+      - name: Save Sitemap to GitHub
+        run: |
+          git config --local user.name 'Sitemap Bot'
+          git config --local user.email 'bot@funclickergame.com'
+          git add public/sitemap.xml
+          git commit -m "🤖 تحديث خريطة الموقع تلقائياً" || echo "No changes"
+          git push
