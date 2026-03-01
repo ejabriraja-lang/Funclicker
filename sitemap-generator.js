@@ -25,10 +25,10 @@ async function generate() {
         });
         xml += `</urlset>`;
 
-        const publicDir = path.join(process.cwd(), 'public');
-        if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
-        
-        fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), xml);
+       const sitemapPath = path.join(process.cwd(), 'sitemap.xml');
+       fs.writeFileSync(sitemapPath, xml);
+
+
         console.log("✅ Sitemap.xml generated!");
         process.exit(0);
     } catch (e) { console.error(e); process.exit(1); }
