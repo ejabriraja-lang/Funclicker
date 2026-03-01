@@ -1,22 +1,30 @@
-name: Indexing Hammer Bot
+name: Super Hammer Execution
 on:
+  push:
+    branches: [ main ]
   schedule:
-    - cron: '0 * * * *' # سيعمل تلقائياً كل ساعة
-  workflow_dispatch: # يتيح لك تشغيله يدوياً بضغطة زر للتجربة
+    - cron: '0 0 * * *' # يعمل تلقائياً كل يوم في منتصف الليل
 
 jobs:
-  run-bot:
+  run-hammer:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - name: Install Libraries
-        run: npm install googleapis firebase-admin axios
-      - name: Execute Hammer
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: npm install googleapis firebase-admin
+
+      - name: Run Super Hammer
         env:
           GOOGLE_KEY: ${{ secrets.GOOGLE_KEY }}
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
-        run: node index.js
+        run: node super-hammer.js
+
+      - name: Commit Sitemap Change
+        run: |
+          git config --local user.name 'Sitemap Bot'
+          git config --local user.email 'bot@funclickergame.com'
+          git add public/sitemap.xml
+          git commit -m "🤖 تحديث الخريطة تلقائياً" || echo "No changes"
+          git push
