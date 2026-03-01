@@ -1,8 +1,9 @@
 name: Indexing Hammer Bot
 on:
   schedule:
-    - cron: '0 * * * *' # يعمل كل ساعة
-  workflow_dispatch: # للتشغيل اليدوي
+    - cron: '0 * * * *' # سيعمل تلقائياً كل ساعة
+  workflow_dispatch: # يتيح لك تشغيله يدوياً بضغطة زر للتجربة
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
@@ -12,8 +13,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-      - run: npm install googleapis firebase-admin axios
-      - name: Run Hammer
+      - name: Install Libraries
+        run: npm install googleapis firebase-admin axios
+      - name: Execute Hammer
         env:
           GOOGLE_KEY: ${{ secrets.GOOGLE_KEY }}
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
