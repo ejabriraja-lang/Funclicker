@@ -1,58 +1,83 @@
 const { google } = require('googleapis');
 const admin = require('firebase-admin');
-const axios = require('axios');
+const fs = require('fs');
 
-// 1. قراءة المفاتيح من متغيرات البيئة (GitHub Secrets)
+// 1. قراءة المفاتيح (تأكد من إضافتها في GitHub Secrets بنفس الأسماء)
 const googleKey = JSON.parse(process.env.GOOGLE_KEY);
 const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
 
-// 2. إعداد Firebase
 if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(firebaseKey)
-    });
+    admin.initializeApp({ credential: admin.credential.cert(firebaseKey) });
 }
 const db = admin.firestore();
 
-// 3. إعداد Google Indexing
 const jwtClient = new google.auth.JWT(
-    googleKey.client_email,
-    null,
-    googleKey.private_key,
+    googleKey.client_email, null, googleKey.private_key,
     ['https://www.googleapis.com/auth/indexing']
 );
 
-async function startHammer() {
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function startProcess() {
     try {
-        console.log("🔍 جاري جلب الألعاب من Firebase...");
+        console.log("🔍 جاري جلب البيانات من Firebase...");
         const snapshot = await db.collection('artifacts').doc('gaming-hub-pro')
                                  .collection('public').doc('data')
                                  .collection('games').get();
 
-        const tokens = await jwtClient.authorize();
-        
-        for (const doc of snapshot.docs) {
-            const game = doc.data();
-            const url = `https://funclickergame.com/game/${game.slug}`;
-            const fakeGclid = 'EAIaIQobChMI' + Math.random().toString(36).substring(2, 12).toUpperCase();
-            const targetUrl = `${url}?gclid=${fakeGclid}`;
+        if (snapshot.empty) {
+            console.log("⚠️ لا توجد ألعاب لإرسالها.");
+            return;
+        }
 
-            // إرسال لـ Google Indexing API
-            await axios.post('https://indexing.googleapis.com/v3/urlNotifications:publish', {
-                url: targetUrl,
-                type: 'URL_UPDATED'
-            }, {
-                headers: { 'Authorization': `Bearer ${tokens.access_token}` }
+        // --- الجزء الأول: توليد الـ Sitemap ---
+        console.log("🏗️ جاري بناء الـ Sitemap...");
+        const baseUrl = 'https://funclickergame.com';
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+        xml += `  <url><loc>${baseUrl}/</loc><priority>1.0</priority></url>\n`;
+
+        snapshot.docs.forEach(doc => {
+            xml += `  <url><loc>${baseUrl}/game/${doc.data().slug}</loc><priority>0.8</priority></url>\n`;
+        });
+        xml += `</urlset>`;
+        fs.writeFileSync('./public/sitemap.xml', xml);
+        console.log("✅ تم تحديث sitemap.xml");
+
+        // --- الجزء الثاني: تشغيل المطرقة (Indexing) ---
+        const tokens = await jwtClient.authorize();
+        console.log("🔨 بدأت المطرقة في العمل (نظام المجموعات)...");
+
+        const games = snapshot.docs;
+        const batchSize = 5; // نرسل 5 فقط ثم ننتظر لتجنب الـ 429
+
+        for (let i = 0; i < games.length; i += batchSize) {
+            const batch = games.slice(i, i + batchSize);
+            
+            const requests = batch.map(doc => {
+                const game = doc.data();
+                const url = `${baseUrl}/game/${game.slug}`;
+                // نصيحة سليم: لا تبالغ في الـ fakeGclid، جوجل يفضل الروابط النظيفة
+                return google.indexing('v3').urlNotifications.publish({
+                    auth: jwtClient,
+                    requestBody: { url: url, type: 'URL_UPDATED' }
+                });
             });
 
-            console.log(`✅ تم إرسال: ${targetUrl}`);
-            // تأخير بسيط لتجنب الحظر
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await Promise.all(requests);
+            console.log(`✅ تم إرسال مجموعة من ${batch.length} روابط.`);
+
+            // تأخير 5 ثوانٍ بين كل دفعة (هذا هو مفتاح حل الـ 429)
+            if (i + batchSize < games.length) {
+                console.log("⏳ انتظار 5 ثوانٍ لتهدئة السيرفر...");
+                await sleep(5000);
+            }
         }
+
+        console.log("🏁 انتهت العملية بالكامل بنجاح!");
     } catch (error) {
         console.error("❌ خطأ:", error.message);
         process.exit(1);
     }
 }
 
-startHammer();
+startProcess();
