@@ -1,24 +1,30 @@
-name: Generate Sitemap
+name: Manual Sitemap Generator
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # <-- هذا هو السطر السحري الذي يظهر الزر اليدوييعمل عند كل رفع للكود
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install DB Admin
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Firebase Admin
         run: npm install firebase-admin
-      - name: Run Generator
+
+      - name: Run Generator Script
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: node sitemap-generator.js
-      - name: Save to Repository
-        run: |
-          git config --local user.name 'Sitemap Bot'
-          git config --local user.email 'bot@funclickergame.com'
-          git add public/sitemap.xml
-          git commit -m "🤖 Auto-update sitemap" || echo "No changes"
-          git push
+
+      # --- الخطوة السحرية: رفع الملف للسيرفر تلقائياً ---
+      - name: FTP Deploy Sitemap
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./public/  # المجلد الذي يحتوي على السايت ماب
+          server-dir: ./public_html/public/ # المسار داخل سيرفرك (تأكد منه)
