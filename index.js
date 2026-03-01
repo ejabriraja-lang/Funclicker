@@ -1,13 +1,12 @@
 const { google } = require('googleapis');
 const admin = require('firebase-admin');
-const fs = require('fs');
-const path = require('path');
+const axios = require('axios');
 
-// 1. جلب المفاتيح من GitHub Secrets
+// 1. قراءة المفاتيح من متغيرات البيئة (GitHub Secrets)
 const googleKey = JSON.parse(process.env.GOOGLE_KEY);
 const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
 
-// 2. تهيئة Firebase
+// 2. إعداد Firebase
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(firebaseKey)
@@ -15,7 +14,7 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-// 3. تهيئة Google Indexing
+// 3. إعداد Google Indexing
 const jwtClient = new google.auth.JWT(
     googleKey.client_email,
     null,
@@ -25,62 +24,33 @@ const jwtClient = new google.auth.JWT(
 
 async function startHammer() {
     try {
-        console.log("📡 جاري الاتصال بقاعدة البيانات...");
-        
-        // المسار الدقيق للألعاب في Firestore
+        console.log("🔍 جاري جلب الألعاب من Firebase...");
         const snapshot = await db.collection('artifacts').doc('gaming-hub-pro')
                                  .collection('public').doc('data')
                                  .collection('games').get();
 
-        if (snapshot.empty) {
-            console.log("⚠️ لا توجد ألعاب لإرسالها.");
-            return;
-        }
-
-        const baseUrl = 'https://funclickergame.com';
-        
-        // --- أولاً: توليد ملف الـ Sitemap (حل مشكلة الـ HTML) ---
-        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-        xml += `  <url><loc>${baseUrl}/</loc><priority>1.0</priority></url>\n`;
-
-        snapshot.docs.forEach(doc => {
-            const game = doc.data();
-            xml += `  <url><loc>${baseUrl}/game/${game.slug}</loc><priority>0.8</priority></url>\n`;
-        });
-        xml += `</urlset>`;
-
-        // إنشاء مجلد public إذا لم يكن موجوداً (حل خطأ ENOENT)
-        const publicDir = path.join(process.cwd(), 'public');
-        if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
-        
-        fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), xml);
-        console.log("✅ تم إنشاء sitemap.xml بنجاح.");
-
-        // --- ثانياً: تشغيل المطرقة (Indexing) مع حل خطأ 429 ---
         const tokens = await jwtClient.authorize();
-        console.log("🔨 بدأت المطرقة في إرسال الروابط لجوجل...");
-
+        
         for (const doc of snapshot.docs) {
             const game = doc.data();
-            const url = `${baseUrl}/game/${game.slug}`;
+            const url = `https://funclickergame.com/game/${game.slug}`;
+            const fakeGclid = 'EAIaIQobChMI' + Math.random().toString(36).substring(2, 12).toUpperCase();
+            const targetUrl = `${url}?gclid=${fakeGclid}`;
 
-            try {
-                await google.indexing('v3').urlNotifications.publish({
-                    auth: jwtClient,
-                    requestBody: { url: url, type: 'URL_UPDATED' }
-                });
-                console.log(`🚀 تم إرسال: ${url}`);
-            } catch (err) {
-                console.error(`❌ فشل إرسال ${url}:`, err.message);
-            }
+            // إرسال لـ Google Indexing API
+            await axios.post('https://indexing.googleapis.com/v3/urlNotifications:publish', {
+                url: targetUrl,
+                type: 'URL_UPDATED'
+            }, {
+                headers: { 'Authorization': `Bearer ${tokens.access_token}` }
+            });
 
-            // تأخير 2 ثانية بين كل رابط (هذا يحل مشكلة الـ 429 نهائياً)
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log(`✅ تم إرسال: ${targetUrl}`);
+            // تأخير بسيط لتجنب الحظر
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        console.log("🏁 انتهت العملية بنجاح!");
     } catch (error) {
-        console.error("❌ خطأ فادح:", error.message);
+        console.error("❌ خطأ:", error.message);
         process.exit(1);
     }
 }
