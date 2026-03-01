@@ -19,7 +19,7 @@ jobs:
         env:
           GOOGLE_KEY: ${{ secrets.GOOGLE_KEY }}
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
-        run: node super-hammer.js
+        run: node index.js
 
       - name: Commit Sitemap Change
         run: |
