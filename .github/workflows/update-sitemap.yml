@@ -1,7 +1,8 @@
 name: Generate Sitemap
 on:
   push:
-    branches: [ main ] # يعمل عند كل رفع للكود
+    branches: [ main ]
+  workflow_dispatch: # <-- هذا هو السطر السحري الذي يظهر الزر اليدوييعمل عند كل رفع للكود
 
 jobs:
   build:
